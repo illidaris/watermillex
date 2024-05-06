@@ -2,7 +2,8 @@ package kafkaex
 
 // 内置Group
 const (
-	APHMQIGP_DEF = "aphmqigp_def" // APHMQIGP_DEF 是一个默认标识符
+	APHMQIGP_DEF   = "aphmqigp_def"   // APHMQIGP_DEF 是一个默认标识符
+	APHMQIGP_INNER = "aphmqigp_inner" // APHMQIGP_INNER 是一个内置，用于处理重试与死信的主消费配置
 )
 
 // 内置队列

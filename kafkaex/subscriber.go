@@ -18,7 +18,7 @@ func (m *WaterMillManager) RegisterRetry(ctx context.Context, h Handler) error {
 		h = defaultRetryPublishHandle
 	}
 	return m.RegisterSubscriber(ctx, APHMQITP_RETRY,
-		WithSharedGroup(),
+		WithGroup(APHMQIGP_INNER),
 		WithTopic(APHMQITP_RETRY),
 		WithHandle(h))
 }
@@ -32,7 +32,7 @@ func (m *WaterMillManager) RegisterDead(ctx context.Context, h Handler) error {
 		h = defaultDeadHandle
 	}
 	return m.RegisterSubscriber(ctx, APHMQITP_DEAD,
-		WithSharedGroup(),
+		WithGroup(APHMQIGP_INNER),
 		WithTopic(APHMQITP_DEAD),
 		WithHandle(h))
 }
