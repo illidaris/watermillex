@@ -107,8 +107,8 @@ func processHanlder(topic, executer string, handle Handler) (func(ctx context.Co
 			box := NewBoxMessage()
 			box.WithRawMessage(msg)
 			err := invoke(ctx, box, handle) // 执行订阅
-			box.ExecResult(executer, err)   // 处理结果，封入消息
 			if err != nil {
+				box.ExecResult(executer, err) // 处理结果，封入消息
 				if noretry || box.Dead() {
 					_ = m.Publish(APHMQITP_DEAD, box)
 				} else {
