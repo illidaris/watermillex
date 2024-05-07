@@ -15,6 +15,7 @@ type Options struct {
 	RetryMax      int64                               `json:"retrymax" form:"retrymax"`     // 最大重试次数
 	RetryIndex    int64                               `json:"retryindex" form:"retryindex"` // 当前重试索引
 	Overwrite     func(*sarama.Config) *sarama.Config `json:"-" form:"-"`                   // 重写config
+	ExecType      int32                               `json:"exectype" form:"exectype"`     // 0：普通消费，1-阻塞消费
 	Handle        Handler                             `json:"-" form:"-"`                   // 消息处理函数
 	HandleTimeout time.Duration                       `json:"timeout" form:"timeout"`       // 处理超时时间
 }
@@ -103,6 +104,13 @@ func WithRetryMax(retryMax int64) Option {
 func WithOverwrite(overwrite func(*sarama.Config) *sarama.Config) Option {
 	return func(o *Options) {
 		o.Overwrite = overwrite
+	}
+}
+
+// WithExecType 0：普通消费，1-阻塞消费
+func WithExecType(execType int32) Option {
+	return func(o *Options) {
+		o.ExecType = execType
 	}
 }
 

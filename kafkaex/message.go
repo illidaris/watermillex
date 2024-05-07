@@ -36,6 +36,11 @@ func (m *BoxMessage) Dead() bool {
 	return m.RetryMax == 0 || m.RetryIndex >= m.RetryMax
 }
 
+// Blocked 消费进入阻塞状态。
+func (m *BoxMessage) Blocked() bool {
+	return m.ExecType == 1
+}
+
 // ExecResult 更新消息的执行结果，并根据是否重试或消息是否进入死信状态，发布消息到相应的主题。
 func (m *BoxMessage) ExecResult(execer string, err error) {
 	m.Execer = execer
@@ -75,6 +80,7 @@ func (m *BoxMessage) NewRawMessage() *message.Message {
 	msg.Metadata.Set(APHMQH_RETRIES_MAX, cast.ToString(m.RetryMax))
 	msg.Metadata.Set(APHMQH_EXEC_TIMEOUT, cast.ToString(m.HandleTimeout.Milliseconds()))
 	msg.Metadata.Set(APHMQH_MSG_ID, m.MsgId)
+	msg.Metadata.Set(APHMQH_EXECTYPE, cast.ToString(m.ExecType))
 	msg.Metadata.Set(APHMQH_EXECER, m.Execer)
 	msg.Metadata.Set(APHMQH_EXECAT, cast.ToString(m.ExecAt))
 	msg.Metadata.Set(APHMQH_EXECERR, m.ExecErr)
@@ -104,6 +110,9 @@ func (m *BoxMessage) WithHeadersOption(headers map[string]string) *BoxMessage {
 	if v := headers[APHMQH_EXEC_TIMEOUT]; v != "" {
 		timeout := time.Duration(cast.ToInt64(v)) * time.Millisecond
 		m.HandleTimeout = timeout
+	}
+	if v := headers[APHMQH_EXECTYPE]; v != "" {
+		m.ExecType = cast.ToInt32(v)
 	}
 	if v := headers[APHMQH_EXECER]; v != "" {
 		m.Execer = v

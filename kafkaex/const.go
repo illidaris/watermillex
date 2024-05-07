@@ -21,6 +21,7 @@ const (
 	APHMQH_MSG_TOPIC     = "_aphmqh_msgtopic"   // APHMQH_MSG_TOPIC 用于标识消息的主题
 	APHMQH_RETRIES       = "_aphmqh_retries"    // APHMQH_RETRIES 表示消息的重试次数
 	APHMQH_RETRIES_MAX   = "_aphmqh_retriesmax" // APHMQH_RETRIES_MAX 表示消息的最大重试次数
+	APHMQH_EXECTYPE      = "_aphmqh_exectype"   // APHMQH_EXECTYPE 用于标识执行消息的方式
 	APHMQH_EXECER        = "_aphmqh_execer"     // APHMQH_EXECER 用于标识执行消息的实体
 	APHMQH_EXECAT        = "_aphmqh_execat"     // APHMQH_EXECAT 用于标识消息执行的时间
 	APHMQH_EXECERR       = "_aphmqh_execerr"    // APHMQH_EXECERR 用于记录消息执行失败的原因

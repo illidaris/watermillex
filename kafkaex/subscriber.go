@@ -113,6 +113,10 @@ func processHanlder(topic, executer string, handle Handler) (func(ctx context.Co
 			box.WithRawMessage(msg)
 			err := invoke(ctx, box, handle) // 执行订阅
 			if err != nil {
+				if box.Blocked() {
+					deflog.ErrorCtx(ctx, "消费使用阻塞策略,无法进入重试以及死信队列%v", err)
+					return
+				}
 				if subErr := ErrExec(topic, executer, box, err, m.Publish); subErr != nil {
 					deflog.ErrorCtx(ctx, "发送错误消息至处理队列失败%v", subErr)
 				}
