@@ -12,6 +12,7 @@ import (
 
 // 定义全局变量，用于配置和管理Kafka连接信息及重试、超时策略。
 var (
+	name            string                                 // 节点名
 	once            sync.Once                              // 确保全局变量只被初始化一次。
 	defManager      IManager                               // 默认的管理接口。
 	deflog          ILogger         = NewWaterMillLogger() // 默认的日志记录器。
@@ -21,6 +22,11 @@ var (
 	retryDelay      time.Duration                          // 重试延迟时间。
 	execTimeout     time.Duration                          // 执行超时时间。
 )
+
+// SetName 设置节点名。
+func SetName(n string) {
+	name = n
+}
 
 // SetGetKafkaUserFunc 设置获取Kafka用户名的函数。
 func SetGetKafkaUserFunc(f func() string) {
@@ -45,6 +51,14 @@ func SetRetryDelay(delay time.Duration) {
 // SetTimeout 设置执行超时时间。
 func SetTimeout(timeout time.Duration) {
 	execTimeout = timeout
+}
+
+// 有设置则取设置名，没有则取默认名。
+func getName() string {
+	if name == "" {
+		return "kafkaex"
+	}
+	return name
 }
 
 // getRetryDelay 返回配置的重试延迟时间，若未配置则返回默认值3秒。

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/IBM/sarama"
 	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/illidaris/core"
@@ -50,7 +51,9 @@ func (m *WaterMillManager) RegisterSubscriber(ctx context.Context, topic string,
 	if opt.Handle == nil {
 		return ErrNoFoundHandle
 	}
-	sub := m.Subs.GetOrSet(opt.Group, NewSubscriber)
+	sub := m.Subs.GetOrSet(opt.Group, func(key string) (*kafka.Subscriber, error) {
+		return NewSubscriber(key, opt.Overwrite)
+	})
 	if sub == nil {
 		return ErrNoFoundSubscriber
 	}
@@ -58,7 +61,8 @@ func (m *WaterMillManager) RegisterSubscriber(ctx context.Context, topic string,
 	if err != nil {
 		return err
 	}
-	process, err := processHanlder(topic, opt.Group, opt.Handle)
+	execer := fmt.Sprintf("%s,%s", getName(), opt.Group)
+	process, err := processHanlder(topic, execer, opt.Handle)
 	if err != nil {
 		return err
 	}
@@ -67,9 +71,11 @@ func (m *WaterMillManager) RegisterSubscriber(ctx context.Context, topic string,
 }
 
 // NewSubscriber 创建并返回一个新的Kafka订阅者实例。
-// group: 订阅者所属的消费组。
-// 返回值: 创建的Kafka订阅者实例和可能遇到的错误。
-func NewSubscriber(group string) (*kafka.Subscriber, error) {
+func NewSubscriber(group string, ow func(*sarama.Config) *sarama.Config) (*kafka.Subscriber, error) {
+	cfg := getConfig()
+	if ow != nil {
+		cfg = ow(cfg)
+	}
 	res, err := kafka.NewSubscriber(
 		kafka.SubscriberConfig{
 			Brokers: getKafkaBrokers(),
@@ -80,7 +86,7 @@ func NewSubscriber(group string) (*kafka.Subscriber, error) {
 				v := msg.Metadata.Get(APHMQH_PARTITION_KEY)
 				return v, nil
 			}),
-			OverwriteSaramaConfig: getConfig(),
+			OverwriteSaramaConfig: cfg,
 			ConsumerGroup:         group,
 		},
 		NewWaterMillLogger(),
@@ -97,7 +103,6 @@ func NewSubscriber(group string) (*kafka.Subscriber, error) {
 // handle: 消息处理程序。
 // 返回值: 一个函数，该函数可被Go协程调用以处理消息。
 func processHanlder(topic, executer string, handle Handler) (func(ctx context.Context, messages <-chan *message.Message), error) {
-	noretry := topic == APHMQITP_DEAD || topic == APHMQITP_RETRY
 	m := GetManager()
 	if m == nil {
 		return nil, ErrNoFoundManager
@@ -108,16 +113,38 @@ func processHanlder(topic, executer string, handle Handler) (func(ctx context.Co
 			box.WithRawMessage(msg)
 			err := invoke(ctx, box, handle) // 执行订阅
 			if err != nil {
-				box.ExecResult(executer, err) // 处理结果，封入消息
-				if noretry || box.Dead() {
-					_ = m.Publish(APHMQITP_DEAD, box)
-				} else {
-					_ = m.Publish(APHMQITP_RETRY, box)
+				if subErr := ErrExec(topic, executer, box, err, m.Publish); subErr != nil {
+					deflog.ErrorCtx(ctx, "发送错误消息至处理队列失败%v", subErr)
 				}
 			}
 			msg.Ack()
 		}
 	}, nil
+}
+
+// ErrExec 处理错误执行逻辑，并根据错误情况发布到不同的主题。
+//
+// 参数:
+// topic - 消息的主题。
+// executer - 执行者的标识。
+// box - 包含执行结果的消息盒。
+// err - 执行过程中遇到的错误。
+// publishFunc - 用于发布消息的函数，接受主题和消息盒作为参数，返回错误。
+//
+// 返回值:
+// 返回调用publishFunc函数时的错误，如果publishFunc执行失败。
+func ErrExec(topic, executer string, box *BoxMessage, err error, publishFunc func(string, *BoxMessage) error) error {
+	// 判断是否为内部错误主题
+	isInner := topic == APHMQITP_DEAD || topic == APHMQITP_RETRY
+	if !isInner {
+		box.ExecResult(executer, err) // 处理非内部错误的结果，并将结果封装到消息中
+	}
+	// 根据是否为内部错误或消息盒标记为死亡状态，决定发布到哪个主题
+	if isInner || box.Dead() {
+		return publishFunc(APHMQITP_DEAD, box)
+	} else {
+		return publishFunc(APHMQITP_RETRY, box)
+	}
 }
 
 // invoke 调用提供的处理程序来处理消息，并处理任何可能发生的错误。

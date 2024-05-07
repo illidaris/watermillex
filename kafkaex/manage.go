@@ -3,6 +3,7 @@ package kafkaex
 import (
 	"context"
 
+	"github.com/IBM/sarama"
 	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/illidaris/aphrodite/pkg/structure"
 )
@@ -21,6 +22,7 @@ func GetManager() IManager {
 // 包括发布消息、注册订阅者、注册重试处理和注册死信处理。
 type IManager interface {
 	Publish(topic string, boxmsg *BoxMessage) error
+	RawPublish(topic string, boxM *BoxMessage, ow func(*sarama.Config) *sarama.Config) error
 	RegisterSubscriber(ctx context.Context, topic string, opts ...Option) error
 	RegisterRetry(ctx context.Context, h Handler) error
 	RegisterDead(ctx context.Context, h Handler) error

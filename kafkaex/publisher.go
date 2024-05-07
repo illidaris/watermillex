@@ -3,19 +3,22 @@ package kafkaex
 import (
 	"context"
 
+	"github.com/IBM/sarama"
 	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 )
 
 // Publish 将消息发布到指定的主题。
-// 参数:
-// - topic: 要发布消息的主题名称。
-// - boxM: 包含要发布消息的结构体。
-// 返回值:
-// - error: 如果发布过程中遇到错误，则返回错误信息；否则返回nil。
 func (m *WaterMillManager) Publish(topic string, boxM *BoxMessage) error {
+	return m.RawPublish(topic, boxM, nil)
+}
+
+// RawPublish 将消息发布到指定的主题。
+func (m *WaterMillManager) RawPublish(topic string, boxM *BoxMessage, ow func(*sarama.Config) *sarama.Config) error {
 	// 尝试从缓存中获取或创建一个新的发布者
-	pub := m.Pubs.GetOrSet(boxM.Group, NewPublisher)
+	pub := m.Pubs.GetOrSet(boxM.Group, func(key string) (*kafka.Publisher, error) {
+		return NewPublisher(topic, ow)
+	})
 	if pub == nil {
 		return ErrNoFoundPublisher // 如果无法获取发布者，则返回错误
 	}
@@ -28,11 +31,15 @@ func (m *WaterMillManager) Publish(topic string, boxM *BoxMessage) error {
 // 返回值:
 // - *kafka.Publisher: 创建的Kafka发布者实例。
 // - error: 如果在创建发布者过程中遇到错误，则返回错误信息；否则返回nil。
-func NewPublisher(topic string) (*kafka.Publisher, error) {
+func NewPublisher(topic string, ow func(*sarama.Config) *sarama.Config) (*kafka.Publisher, error) {
+	cfg := getConfig()
+	if ow != nil {
+		cfg = ow(cfg)
+	}
 	res, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
 			Brokers:               getKafkaBrokers(), // 指定Kafka代理服务器列表
-			OverwriteSaramaConfig: getConfig(),       // 应用额外的Sarama配置
+			OverwriteSaramaConfig: cfg,               // 应用额外的Sarama配置
 			Marshaler: kafka.NewWithPartitioningMarshaler(func(topic string, msg *message.Message) (string, error) {
 				if msg.Metadata == nil {
 					return msg.UUID, nil

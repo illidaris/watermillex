@@ -2,18 +2,21 @@ package kafkaex
 
 import (
 	"time"
+
+	"github.com/IBM/sarama"
 )
 
 // Options 定义了消息队列的选项配置
 type Options struct {
-	Group         string        `json:"group" form:"group"`           // 消息组别
-	Topic         string        `json:"topic" form:"topic"`           // 消息主题
-	Key           string        `json:"key" form:"key"`               // 消息键
-	TraceId       string        `json:"traceid" form:"traceid"`       // 跟踪ID
-	RetryMax      int64         `json:"retrymax" form:"retrymax"`     // 最大重试次数
-	RetryIndex    int64         `json:"retryindex" form:"retryindex"` // 当前重试索引
-	Handle        Handler       `json:"-" form:"-"`                   // 消息处理函数
-	HandleTimeout time.Duration `json:"timeout" form:"timeout"`       // 处理超时时间
+	Group         string                              `json:"group" form:"group"`           // 消息组别
+	Topic         string                              `json:"topic" form:"topic"`           // 消息主题
+	Key           string                              `json:"key" form:"key"`               // 消息键
+	TraceId       string                              `json:"traceid" form:"traceid"`       // 跟踪ID
+	RetryMax      int64                               `json:"retrymax" form:"retrymax"`     // 最大重试次数
+	RetryIndex    int64                               `json:"retryindex" form:"retryindex"` // 当前重试索引
+	Overwrite     func(*sarama.Config) *sarama.Config `json:"-" form:"-"`                   // 重写config
+	Handle        Handler                             `json:"-" form:"-"`                   // 消息处理函数
+	HandleTimeout time.Duration                       `json:"timeout" form:"timeout"`       // 处理超时时间
 }
 
 // Fmt 检查并设置Options的默认值
@@ -93,6 +96,13 @@ func WithRetryIndex(retryIndex int64) Option {
 func WithRetryMax(retryMax int64) Option {
 	return func(o *Options) {
 		o.RetryMax = retryMax
+	}
+}
+
+// WithOverwrite 设置重写
+func WithOverwrite(overwrite func(*sarama.Config) *sarama.Config) Option {
+	return func(o *Options) {
+		o.Overwrite = overwrite
 	}
 }
 
